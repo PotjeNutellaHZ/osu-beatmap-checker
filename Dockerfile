@@ -36,6 +36,9 @@ RUN composer install --no-dev --optimize-autoloader
 RUN php artisan config:clear || true
 RUN php artisan route:clear || true
 
+# Database migraten voor cache errors
+RUN php artisan migrate --force
+
 # Maak storage directories aan en geef de juiste rechten
 RUN mkdir -p storage/framework/{sessions,views,cache} \
     && chmod -R 775 storage \
