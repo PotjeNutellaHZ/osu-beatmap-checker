@@ -32,6 +32,11 @@ RUN a2enmod rewrite
 # Installeer PHP dependencies
 RUN composer install --no-dev --optimize-autoloader
 
+# Node installeren (bijv. via multi-stage)
+RUN curl -fsSL https://deb.nodesource.com/setup_18.x | bash - && \
+    apt-get install -y nodejs && \
+    npm install && npm run build
+
 # Laravel cache opschonen (zonder .env check)
 RUN php artisan config:clear || true
 RUN php artisan route:clear || true
