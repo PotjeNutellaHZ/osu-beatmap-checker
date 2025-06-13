@@ -1,4 +1,4 @@
-# Use official PHP image with Apache
+# Use official PHP image with apache
 FROM php:8.2-apache
 
 # Install system dependencies and PHP extensions
@@ -6,7 +6,7 @@ RUN apt-get update && apt-get install -y \
     git unzip zip curl libzip-dev libonig-dev libxml2-dev libpq-dev npm \
     && docker-php-ext-install pdo_pgsql mbstring zip xml
 
-# Enable Apache mod_rewrite
+# Enable apache mod_rewrite
 RUN a2enmod rewrite
 
 # Replace default site config with your Laravel-friendly one
@@ -35,8 +35,8 @@ RUN npm run build
 # Set permissions for storage and cache
 RUN chown -R www-data:www-data storage bootstrap/cache
 
-# Expose port 80 (Apache default)
+# Expose port 80 (apache default)
 EXPOSE 80
 
-# Start Apache
+# Start apache
 CMD php artisan migrate --force && apache2-foreground
