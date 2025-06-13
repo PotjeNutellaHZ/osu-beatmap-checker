@@ -1,56 +1,42 @@
-# Gebruik officiële PHP image met Apache
+# Use official PHP image with Apache
 FROM php:8.2-apache
 
-# Installeer systeemafhankelijkheden en PHP-extensies
+# Install system dependencies and PHP extensions
 RUN apt-get update && apt-get install -y \
-    libzip-dev zip unzip curl git \
-    && docker-php-ext-install pdo pdo_mysql zip
+    git unzip zip curl libzip-dev libonig-dev libxml2-dev libpq-dev npm \
+    && docker-php-ext-install pdo_pgsql mbstring zip xml
 
-# Installeer Composer
-COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
-
-# Stel werkmap in
-WORKDIR /var/www/html
-
-# Kopieer projectbestanden
-COPY . .
-
-# Pas rechten aan (voor Laravel storage en cache)
-RUN chown -R www-data:www-data /var/www/html \
-    && chmod -R 755 /var/www/html
-
-# Stel de juiste public root in voor Apache
-ENV APACHE_DOCUMENT_ROOT /var/www/html/public
-
-# Pas Apache-config aan zodat /public de root is
-RUN sed -ri -e 's!/var/www/html!/var/www/html/public!g' /etc/apache2/sites-available/*.conf
-RUN sed -ri -e 's!/var/www/!/var/www/html/public!g' /etc/apache2/apache2.conf /etc/apache2/conf-available/*.conf
-
-# Enable Laravel-vriendelijke instellingen
+# Enable Apache mod_rewrite
 RUN a2enmod rewrite
 
-# Installeer PHP dependencies
+# Replace default site config with your Laravel-friendly one
+COPY apache/000-default.conf /etc/apache2/sites-available/000-default.conf
+
+# Set working directory
+WORKDIR /var/www/html
+
+# Copy project files
+COPY . /var/www/html
+
+# Install Composer
+COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+
+# Install PHP dependencies
 RUN composer install --no-dev --optimize-autoloader
 
-# Node installeren (bijv. via multi-stage)
-RUN curl -fsSL https://deb.nodesource.com/setup_18.x | bash - && \
-    apt-get install -y nodejs && \
-    npm install && npm run build
+# Copy env and generate app key
+RUN cp .env.example .env && php artisan key:generate
 
-# Laravel cache opschonen (zonder .env check)
-RUN php artisan config:clear || true
-RUN php artisan route:clear || true
+# Install Node.js deps and build Vite assets
+RUN npm install
 
-# Database migraten voor cache errors
-RUN php artisan migrate --force
+RUN npm run build
 
-# Maak storage directories aan en geef de juiste rechten
-RUN mkdir -p storage/framework/{sessions,views,cache} \
-    && chmod -R 775 storage \
-    && chown -R www-data:www-data storage bootstrap/cache
+# Set permissions for storage and cache
+RUN chown -R www-data:www-data storage bootstrap/cache
 
-# Stel poort in
+# Expose port 80 (Apache default)
 EXPOSE 80
 
 # Start Apache
-CMD ["apache2-foreground"]
+CMD php artisan migrate --force && apache2-foreground
